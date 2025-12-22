@@ -1,0 +1,5 @@
+B - Ball create mode
+    Click - Create Ball
+    Scroll - Adj Ball Size
+W - Wall create mode
+    Click + Drag - Create wall
