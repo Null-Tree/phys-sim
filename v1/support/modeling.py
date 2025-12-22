@@ -170,7 +170,7 @@ class Physics:
             ball.pos=op1
             ball2.pos=op2
             
-            # old
+            # old (placeholder, collision mech to replace later)
             
             tbl=[ball,ball2]
             for tempball in tbl:
