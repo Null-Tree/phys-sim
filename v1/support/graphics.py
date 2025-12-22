@@ -29,7 +29,7 @@ class Game:
         self.gsize=Vector2.to_V2(dim)
 
         # control area
-        self.csize=Vector2(200,600)
+        self.csize=Vector2(200,400)
 
         # window
         self.w=self.gsize.x + (3*self.pad) + self.csize.x

@@ -1,5 +1,5 @@
 from support.graphics import *
-g=Game((500,500))
+g=Game((600,600))
 
 # make walls
 g.world.edge_walls()

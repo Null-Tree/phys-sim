@@ -122,7 +122,7 @@ class Physics:
                 b_v_c=ball.pos-wall.p2
                 if (b_v_c).magnitude() <= ball.r:
                     ball.pos=oldpos
-                    ball.v = self.reflect_v(ball.v,b_v_c).copy()
+                    ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
                 continue
                 
 
@@ -140,7 +140,7 @@ class Physics:
                 if in_range(d_along_wall,0,wall.lengh):
                     # reflect velocity vector perpendicular to wall
                     ball.pos=oldpos
-                    ball.v = self.reflect_v(ball.v,wall.v_norm).copy()
+                    ball.v = self.reflect_v(ball.v,wall.v_norm,wall.bounce_factor)
 
                 
                 elif in_range(d_along_wall,-ball.r,0):
@@ -148,7 +148,7 @@ class Physics:
                     b_v_c=ball.pos-wall.p1
                     if (b_v_c).magnitude() <= ball.r:
                         ball.pos=oldpos
-                        ball.v = self.reflect_v(ball.v,b_v_c).copy()
+                        ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
                         
                         
                 
@@ -157,7 +157,7 @@ class Physics:
                     b_v_c=ball.pos-wall.p2
                     if (b_v_c).magnitude() <= ball.r:
                         ball.pos=oldpos
-                        ball.v = self.reflect_v(ball.v,b_v_c).copy()
+                        ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
 
     def apply_ball_ball_collision(self,ball:Ball,ball2:Ball,op1:Vector2,op2:Vector2):
         dist=(ball.pos - ball2.pos).magnitude()
