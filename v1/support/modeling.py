@@ -160,13 +160,18 @@ class Physics:
                         ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
 
     def apply_ball_ball_collision(self,ball:Ball,ball2:Ball,op1:Vector2,op2:Vector2):
-        dist=(ball.pos - ball2.pos).magnitude()
-        r_total=ball.r+ball2.r
         
-        if dist<r_total:
+        d_pv:Vector2=ball.pos-ball2.pos
+        r_total=ball.r+ball2.r
+
+        dist_sqr=(ball.pos - ball2.pos).mag_sqr()
+        
+        
+        if dist_sqr<r_total**2:
+            # dist=dist_sqr**0.5
             # if ball to ball collision
             # snap back
-            d_pv:Vector2=ball.pos-ball2.pos
+            
             ball.pos=op1
             ball2.pos=op2
             

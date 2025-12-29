@@ -151,11 +151,10 @@ class Game:
     def ui_to_window_xy(self,v:Vector2):
         return Vector2(self.pad*2+self.gsize.x,self.pad)+v
     
-    def text_rend(self,text_string=None):
+    def text_rend(self,text_string:str=None):
         if text_string==None or text_string=="":
             self.curr_gui_line+=1
-
-
+            return        
         text=self.font.render(text_string,True,self.font_color,None)
         text_rect=text.get_rect()
         
@@ -185,7 +184,7 @@ class Game:
             file_path = 'v1/support/static/instructions.txt'
             with open(file_path, 'r') as file:
                 for line in file:
-                    self.text_rend(line.lstrip())
+                    self.text_rend(line.rstrip())
 
             self.text_rend()
 

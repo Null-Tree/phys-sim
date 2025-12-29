@@ -94,6 +94,10 @@ class Vector2:
         # print(type(m))
         return m
     
+    def mag_sqr(self):
+        return (self.x**2 + self.y**2)
+
+    
     def unit_v(self):
         uv=self/self.magnitude()
         return uv
