@@ -5,3 +5,5 @@ B - Ball create mode
     Scroll - Adj Ball Size
 W - Wall create mode
     Click + Drag - Create wall
+C - Clear all
+E - Create Edge walls

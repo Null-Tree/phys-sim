@@ -112,11 +112,14 @@ class Game:
                     self.mode="wall"
                 elif event.key==pygame.K_b:
                     self.mode="ball"
+                    
                 # print(mode)
 
                 if event.key==pygame.K_c:
-                    for ball in self.world.balls:
-                        print(ball.pos)
+                    self.world.clear()
+
+                if event.key == pygame.K_e:
+                    self.world.edge_walls()
 
             elif event.type==pygame.KEYUP:
                 self.held_keys.discard(event.key)
@@ -167,11 +170,8 @@ class Game:
         return
     
     def render_gui(self,sdt,rdt,ui_toggled):
-        # render inworld gui items
-        if self.mouse_down_pos != None:
-            pygame.draw.line(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.mouse_down_pos.as_tup())
-            if self.mode == "ball":
-                pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+
+                
         
         # render text gui
         self.curr_gui_line=0
@@ -206,6 +206,27 @@ class Game:
                     pygame.draw.circle(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_size)
                 else:
                     pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+
+            self.text_rend()
+            total_E=0
+            for ball in self.world.balls:
+                m=1
+                total_E+= 0.5 * m * (ball.v.mag_sqr())
+            self.text_rend(f"Total energy: {round(total_E,1)}")
+
+
+            # render inworld gui items
+            if self.mouse_down_pos != None:
+                pygame.draw.line(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.mouse_down_pos.as_tup())
+
+                if self.mode == "ball":
+                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+                    self.text_rend()
+                    vmag=round((self.curr_mouse_pos-self.mouse_down_pos).magnitude())
+                    self.text_rend(f"V: {vmag}")
+                    m=1
+                    e=(self.curr_mouse_pos-self.mouse_down_pos).magnitude()**2 * 0.5 * m
+                    self.text_rend(f"E: {round(e)}")
                     
         
         
@@ -239,10 +260,12 @@ class Game:
             dt=ct-oldt
             oldt=ct
 
-            
+
             # Check for event if user has pushed
             # any event in queue
             self.handel_events(pygame.event.get())
+                    
+            
             
             
             self.world.tstep(dt)
@@ -261,7 +284,8 @@ class Game:
             
 
                 self.render_world()
-                    
+            
+
         pygame.quit() 
 
 

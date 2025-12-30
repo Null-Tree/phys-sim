@@ -17,7 +17,7 @@ def in_range(v,min,max):
     return False
 
 class Ball:
-    def __init__(self,p,v=(0,0),a=(0,0),r=3,bounce_factor=.8,fixed=False):
+    def __init__(self,p,v=(0,0),a=(0,0),r=3,bounce_factor=1,fixed=False):
         self.pos=Vector2.to_V2(p)
         self.v=Vector2.to_V2(v)
         self.a=Vector2.to_V2(a)
@@ -32,7 +32,7 @@ class Ball:
         return f"Ball({self.pos},{self.v})"
 
 class Wall:
-    def __init__(self,p1:Vector2,p2:Vector2,bounce_factor=0.8):
+    def __init__(self,p1:Vector2,p2:Vector2,bounce_factor=1):
         self.p1=p1
         self.p2=p2
         
@@ -103,7 +103,7 @@ class Physics:
      # #############
     
     def apply_sva_kinematics(self,ball,dt):
-        ball.a=Vector2(0,100)
+        # ball.a=Vector2(0,100)
         oldv=ball.v
         ball.v+=ball.a*dt *0.5
         oldpos=ball.pos
@@ -177,23 +177,13 @@ class Physics:
             
             # old (placeholder, collision mech to replace later)
             
-            tbl=[ball,ball2]
-            for tempball in tbl:
-                if not tempball.fixed:
-                    # print("\n")
-                    # print(tempball,ball2)
-                    # print(d_pv)
-                    tempball.v=self.reflect_v(tempball.v,d_pv,tempball.bounce_factor)
 
-
-
-            # velocity of ball relative to ball2
-            # relative_v=ball.v-ball2.v
-            # tangent_rv=relative_v.v_res(d_pv)
-            # norm_rv=relative_v-tangent_rv
-
-            # dv=norm_rv/2 *
-
+            # swap velocities along the dir vector
+            dv1=ball.v.v_res(d_pv)
+            dv2=ball2.v.v_res(d_pv)
+            
+            ball.v += dv2-dv1
+            ball2.v+= dv1-dv2
 
     def tstep(self,dt):
         bl:list[Ball]=self.world.balls
@@ -227,6 +217,8 @@ class World:
         self.balls:list[Ball]=[]
 
         self.physics=Physics(self)
+
+        self.boundary_walled=False
     
     def polygon_wall(self,l_nodes):
         
@@ -241,9 +233,19 @@ class World:
         self.walls.append(wall)
     
     def edge_walls(self):
-        l=[(0,0),(self.dim[0],0),self.dim,(0,self.dim[1]),(0,0)]
-        self.polygon_wall([Vector2.to_V2(t) for t in l])
-        # print([str(w) for w in self.walls])
+        if not self.boundary_walled:
+            l=[(0,0),(self.dim[0],0),self.dim,(0,self.dim[1]),(0,0)]
+            self.polygon_wall([Vector2.to_V2(t) for t in l])
+            # print([str(w) for w in self.walls])
+            self.boundary_walled=True
+    
+    def clear(self,clearboundary=True):
+        self.walls=[]
+        self.balls=[]
+        if clearboundary:
+            self.boundary_walled=False
+        else:
+            self.edge_walls()
 
     def get_walls(self,obj):
         return self.walls
