@@ -1,0 +1,9 @@
+B - Ball create mode
+    Click - Create Ball
+    Click + Drag - Create Ball 
+                    w/ init velo
+    Scroll - Adj Ball Size
+W - Wall create mode
+    Click + Drag - Create wall
+C - Clear all
+E - Create Edge walls
