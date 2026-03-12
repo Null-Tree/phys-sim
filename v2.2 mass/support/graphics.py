@@ -4,11 +4,17 @@ import pygame
 from .modeling import *
 import time
 
+from dataclasses import dataclass
+
+@dataclass
+class Config():
+    pass
 
     
+        
 
 class Game:
-    def __init__(self,dim:tuple,max_ball_size:int=50):
+    def __init__(self,dim:tuple,max_ball_size:int=50,g_coef:int=0):
         """
         Docstring for __init__
         Creates the game object
@@ -49,7 +55,7 @@ class Game:
         self.max_ball_size=max_ball_size
 
         # creates world object
-        self.world=World(dim,max_ball_size,gameobj=self)
+        self.world=World(dim,max_ball_size,g_coef,gameobj=self)
 
         # VECTOR DATA
         # game area
@@ -146,8 +152,9 @@ class Game:
 
     def render_world(self):
         """renders all world objects"""
-        self.draw_all_walls()
+        
         self.draw_all_balls()
+        self.draw_all_walls()
         
 
     def handle_events(self,events):
@@ -183,6 +190,9 @@ class Game:
                 # DEBUG key
                 elif event.key == pygame.K_d:
                     print(self.world.ball_base)
+                
+                elif event.key==pygame.K_r:
+                    self.world.add_ball()
 
 
                 
@@ -204,7 +214,7 @@ class Game:
                     oldp=self.screen_to_world_v(self.mouse_down_pos)
                     newp=self.screen_to_world_v(self.curr_mouse_pos)
                     if self.mode == "ball":
-                        self.world.add_ball(Ball(oldp,dv,r=self.creator_ball_size))
+                        self.world.add_ball(Ball(oldp,dv,r=self.creator_ball_radius))
                     elif self.mode=="wall":
                         self.world.add_wall(Wall(oldp,newp))
 
@@ -213,10 +223,10 @@ class Game:
             elif event.type==pygame.MOUSEWHEEL:
                 if self.mode=="ball" :
 
-                    if event.y>0 and self.creator_ball_size < self.max_ball_size:
-                        self.creator_ball_size+=1
-                    elif event.y<0 and self.creator_ball_size >1:
-                        self.creator_ball_size-=1
+                    if event.y>0 and self.creator_ball_radius < self.max_ball_size:
+                        self.creator_ball_radius+=1
+                    elif event.y<0 and self.creator_ball_radius >1:
+                        self.creator_ball_radius-=1
 
     
     def check_toggles(self):
@@ -301,7 +311,7 @@ class Game:
 
         if ui_toggled:
             self.text_rend()
-            file_path = 'v2.1 chunking/support/static/instructions.txt'
+            file_path = r"v2.2 mass/support/static/instructions.txt"
             with open(file_path, 'r') as file:
                 for line in file:
                     self.text_rend(line.rstrip())
@@ -321,11 +331,11 @@ class Game:
             self.text_rend()
             self.text_rend(f"Mode: {self.mode}")
             if self.mode=="ball":
-                self.text_rend(f"Brush Ball Size: {self.creator_ball_size}")
+                self.text_rend(f"Brush Ball Size: {self.creator_ball_radius}")
                 if self.mouse_down_pos == None:
-                    pygame.draw.circle(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_size)
+                    pygame.draw.circle(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_radius)
                 else:
-                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_radius)
 
             self.text_rend()
             total_E=0
@@ -340,14 +350,22 @@ class Game:
                 self.draw_line(self.curr_mouse_pos,self.mouse_down_pos,self.plan_color,is_in_world_cord=False)
 
                 if self.mode == "ball":
-                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_radius)
                     self.text_rend()
                     vmag=round((self.curr_mouse_pos-self.mouse_down_pos).magnitude())
                     self.text_rend(f"V: {vmag}")
                     m=1
                     e=(self.curr_mouse_pos-self.mouse_down_pos).magnitude()**2 * 0.5 * m
                     self.text_rend(f"E: {round(e)}")
-                    
+
+                    # ball ting
+                    v_diff=(self.curr_mouse_pos-self.mouse_down_pos)
+                    if not v_diff.is_zero():
+                        norm=Vector2(v_diff.y,-v_diff.x).scale_to_mag(self.creator_ball_radius)
+                        for c in [-1,1]:
+                            d=norm*c
+                            self.draw_line(self.curr_mouse_pos+d,self.mouse_down_pos+d,self.plan_color,is_in_world_cord=False)
+                        
         
             if self.render_chunks_bool:
                 self.render_chunks()
@@ -396,15 +414,15 @@ class Game:
 
             
             wpos=self.world_to_screen_v(ball.pos)
-            id=ball.id
-            text=str(id)
 
             bbl=self.world.ball_base.get_all_adj_chunk_items(ball.pos,True)
             if id in bbl:
                 bbl.remove(id)
             else:
                 print(f"{id} could not find self {bbl}")
-            text=str(len(bbl)) if len(bbl) !=0 else " "
+
+            # code to get number of proximity balls
+            # text=str(len(bbl)) if len(bbl) !=0 else " "
             # text = str(id) + "|" + text
 
             if not ball.v.is_zero():
@@ -415,7 +433,7 @@ class Game:
                         self.draw_line(wpos,wpos2,(0,255,0),is_in_world_cord=False)
 
 
-            self.place_text(text,wpos,self.ball_id_color)
+            self.place_text(ball.debug_info,wpos,self.ball_id_color)
 
 
 
@@ -438,7 +456,7 @@ class Game:
         self.mode=""
         self.mouse_down_pos=None
 
-        self.creator_ball_size=3
+        self.creator_ball_radius=3
 
         
 

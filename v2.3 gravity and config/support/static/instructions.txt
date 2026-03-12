@@ -1,0 +1,20 @@
+1 - Ball create mode
+    Click - Create Ball
+    Click + Drag - Create Ball 
+                    w/ init velo
+    Scroll - Adj Ball Size
+    mass scales with size by default
+    F-toggle fixed ball
+
+2 - Wall create mode
+    Click + Drag - Create wall
+
+C - Clear all
+E - Create Edge walls
+R - recreate ball.  
+T - Trails
+
+Debug:
+I - show ball info
+G - show chunks
+D - cust Debug fucnt

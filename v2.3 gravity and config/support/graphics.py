@@ -1,74 +1,42 @@
 
 
-import pygame
+
 from .modeling import *
-import time
 
 
-    
+
+
 
 class Game:
-    def __init__(self,dim:tuple,max_ball_size:int=50):
-        """
-        Docstring for __init__
-        Creates the game object
-        
-        :param dim: dimensions of Game window (x,y) tuple
-        :type dim: tuple
-        :param max_ball_size: max ball size of balls, aids in chunking
-        :type dim: int
-        """
+    def __init__(self,config=Config()):
 
         # initalises pygame
         pygame.init()
-
-        # initalises cosmetic information
-        self.window_name="idiot's attempt at physics"
-        self.pad=10
-
-
-        self.render_chunks_bool=False
-        self.show_ball_id=False
-
-        # ELEMENT COLORS
-        self.wall_color=(108, 147, 199)
-        self.g_bg=(247, 241, 245)
-        self.w_bg=(157, 165, 188)
-        self.ball_color=(0,0,200)
-        self.plan_color=(200,0,0)
-        self.chunk_color=(241, 64, 165)
-        self.ball_id_color=(0,255,0)
         
-        # TEXT
-        self.txtpad=5
-        self.font=pygame.font.Font(None,20)
-        self.font_color=(200,200,200)
 
-
-        # set maxball size
-        self.max_ball_size=max_ball_size
+        self.config=config
 
         # creates world object
-        self.world=World(dim,max_ball_size,gameobj=self)
+        self.world=World(config=config,
+                         gameobj=self)
 
-        # VECTOR DATA
-        # game area
-        self.gsize=Vector2.to_V2(dim)
-        # control area
-        self.csize=Vector2(200,400)
         # WINDOW CREATION
         # window
-        self.w=self.gsize.x + (3*self.pad) + self.csize.x
-        self.h=max(self.gsize.y,self.csize.y)+2*self.pad
-        self.wsize=Vector2(self.w,self.h)
-        # note setmode makes the window
-        self.window=pygame.display.set_mode((self.w,self.h))
-        pygame.draw.rect(self.window, self.w_bg, pygame.Rect(0,0,self.wsize.x,self.wsize.y))
-        # print((self.w,self.h))
-        x0,y0=self.world_to_screen_v(Vector2(0,0)).as_tup()
-        pygame.draw.rect(self.window, self.g_bg, pygame.Rect(x0,y0,self.gsize.x,self.gsize.y))
-        pygame.display.set_caption(self.window_name)
+        config.windowConfig.w=config.windowConfig.gdim.x + (3*config.windowConfig.padding) + config.windowConfig.cdim.x
+        config.windowConfig.h=max(config.windowConfig.gdim.y,config.windowConfig.cdim.y)+2*config.windowConfig.padding
+        config.windowConfig.wdim=Vector2(config.windowConfig.w,config.windowConfig.h)
 
+
+        # note setmode makes the window
+        self.window=pygame.display.set_mode((self.config.windowConfig.w,self.config.windowConfig.h))
+        pygame.draw.rect(self.window, config.windowConfig.win_bg_color, pygame.Rect(0,0,config.windowConfig.wdim.x,config.windowConfig.wdim.y))
+        x0,y0=self.world_to_screen_v(Vector2(0,0)).as_tup()
+        pygame.draw.rect(self.window, config.windowConfig.game_area_bg_color, pygame.Rect(x0,y0,config.windowConfig.gdim.x,config.windowConfig.gdim.y))
+        pygame.display.set_caption(config.windowConfig.window_name)
+        config.windowConfig.font=pygame.font.Font(None,20)
+
+        # initalise var
+        self.toggle_ball_trails=False
 
     
     def world_to_screen_v(self,p:Vector2):
@@ -78,7 +46,7 @@ class Game:
         :param p: position inworld
         :type p: Vector2
         """
-        return p+ Vector2(self.pad,self.pad)
+        return p+ Vector2(self.config.windowConfig.padding,self.config.windowConfig.padding)
     
     def screen_to_world_v(self,p):
         """
@@ -87,7 +55,7 @@ class Game:
         :param p: position onscreen
         :type p: Vector2
         """
-        return p- Vector2(self.pad,self.pad)
+        return p- Vector2(self.config.windowConfig.padding,self.config.windowConfig.padding)
     
     def draw_line(self,inw_p1:Vector2,inw_p2:Vector2,color,width=1,is_in_world_cord:bool=True):
         """
@@ -121,7 +89,7 @@ class Game:
         if wl == None:
             wl=self.world.walls
         for wall in wl:
-            self.draw_line(wall.p1,wall.p2,self.wall_color,2)
+            self.draw_line(wall.p1,wall.p2,self.config.windowConfig.wall_color,2)
      
     
     def draw_all_balls(self,bl=None):
@@ -134,26 +102,29 @@ class Game:
             bl=self.world.balls
         # print(bl)
         for ball in bl:
-            pygame.draw.circle(self.window,self.ball_color,self.world_to_screen_v(ball.pos).as_tup(),ball.r)
+            pygame.draw.circle(self.window,self.config.windowConfig.ball_color,self.world_to_screen_v(ball.pos).as_tup(),ball.r)
     
     def reset(self):
         """reset graphic window"""
-        x0,y0=self.pad,self.pad
+        x0,y0=self.config.windowConfig.padding,self.config.windowConfig.padding
 
-        pygame.draw.rect(self.window, self.w_bg, pygame.Rect(0,0,self.wsize.x,self.wsize.y))
-        pygame.draw.rect(self.window, self.g_bg, pygame.Rect(x0,y0,self.gsize.x,self.gsize.y))
+        pygame.draw.rect(self.window, self.config.windowConfig.win_bg_color, pygame.Rect(0,0,self.config.windowConfig.wdim.x,self.config.windowConfig.wdim.y))
+        pygame.draw.rect(self.window, self.config.windowConfig.game_area_bg_color, pygame.Rect(x0,y0,self.config.windowConfig.gdim.x,self.config.windowConfig.gdim.y))
 
 
     def render_world(self):
         """renders all world objects"""
-        self.draw_all_walls()
-        self.draw_all_balls()
-        
 
+        if self.toggle_ball_trails:
+            self.render_all_ball_trails()
+        
+        self.draw_all_balls()
+        self.draw_all_walls()
+        
+    # Progress up to here #TODO
     def handle_events(self,events):
         """parses inputs by user"""
         self.curr_mouse_pos = Vector2.to_V2(pygame.mouse.get_pos())
-
         for event in events:
             # if event is of type quit then 
             # set running bool to false
@@ -170,19 +141,30 @@ class Game:
 
                 # print(event.key)
                 
-                if event.key==pygame.K_w:
+                if event.key==pygame.K_2:
                     self.mode="wall"
-                elif event.key==pygame.K_b:
+                elif event.key==pygame.K_1:
                     self.mode="ball"
+                elif event.key==pygame.K_0:
+                    self.mode=""
                 elif event.key==pygame.K_c:
                     self.world.clear()
 
                 elif event.key == pygame.K_e:
                     self.world.edge_walls()
 
+                elif event.key==pygame.K_t:
+                    # note the setting to change if past positions is tracked
+                    # is monitered through tracktoggles not in the following funct
+                    # tis is just to free memory while trails is not being used
+                    self.world.trailtoggle_toggleTrailQueueADT()
+
                 # DEBUG key
                 elif event.key == pygame.K_d:
                     print(self.world.ball_base)
+                
+                elif event.key==pygame.K_r:
+                    self.world.add_ball()
 
 
                 
@@ -204,7 +186,7 @@ class Game:
                     oldp=self.screen_to_world_v(self.mouse_down_pos)
                     newp=self.screen_to_world_v(self.curr_mouse_pos)
                     if self.mode == "ball":
-                        self.world.add_ball(Ball(oldp,dv,r=self.creator_ball_size))
+                        self.world.add_ball(Ball(oldp,dv,r=self.creator_ball_radius,mass=self.default_radius_to_mass(self.creator_ball_radius),fixed=self.ball_creator_fixed))
                     elif self.mode=="wall":
                         self.world.add_wall(Wall(oldp,newp))
 
@@ -213,19 +195,20 @@ class Game:
             elif event.type==pygame.MOUSEWHEEL:
                 if self.mode=="ball" :
 
-                    if event.y>0 and self.creator_ball_size < self.max_ball_size:
-                        self.creator_ball_size+=1
-                    elif event.y<0 and self.creator_ball_size >1:
-                        self.creator_ball_size-=1
+                    if event.y>0 and self.creator_ball_radius < self.config.gameConfig.max_ball_size:
+                        self.creator_ball_radius+=1
+                    elif event.y<0 and self.creator_ball_radius >1:
+                        self.creator_ball_radius-=1
 
     
     def check_toggles(self):
         """
         Checks if debug toggled graphics should be toggled
         """
-
         self.show_ball_id=(pygame.K_i in self.toggled_keys)
         self.render_chunks_bool=(pygame.K_g in self.toggled_keys)
+        self.ball_creator_fixed=(pygame.K_f in self.toggled_keys)
+        self.toggle_ball_trails=(pygame.K_t in self.toggled_keys)
 
     
     def ui_to_window_xy(self,v:Vector2):
@@ -235,8 +218,8 @@ class Game:
         :param v: UI box xy to window xy, topleft = (0,0)
         :type v: Vector2
         """
-        return Vector2(self.pad*2+self.gsize.x,self.pad)+v
-
+        return Vector2(self.config.windowConfig.padding*2+self.config.windowConfig.gdim.x,self.config.windowConfig.padding)+v
+        
     def place_text(self,content:str,window_pos:Vector2,color,center:bool=False):
         """
         places text in window
@@ -249,7 +232,7 @@ class Game:
         :param center: center text?
         :type center: bool
         """
-        text=self.font.render(content,True,color,None)
+        text=self.config.windowConfig.font.render(content,True,color,None)
         text_rect=text.get_rect()
         text_rect.x+=window_pos.x
         text_rect.y+=window_pos.y
@@ -258,7 +241,10 @@ class Game:
             text_rect.y-=int(0.5 * text_rect.h)
         self.window.blit(text,text_rect)
     
-    def text_rend(self,text_string:str=None):
+    def default_radius_to_mass(self,r):
+        return r ** 2
+    
+    def side_UI_text_rend(self,text_string:str=None):
         """
         print text into ui
         if blank will incrememnt line
@@ -271,15 +257,21 @@ class Game:
             return        
         
         wpos=Vector2(
-            self.ui_tl_v.x + self.txtpad,
-            self.curr_gui_line * (self.txtpad + self.font.get_height()) +self.ui_tl_v.y
+            self.ui_tl_v.x + self.config.windowConfig.txtpad,
+            self.curr_gui_line * (self.config.windowConfig.txtpad + self.config.windowConfig.font.get_height()) +self.ui_tl_v.y
         )
 
-        self.place_text(text_string,wpos,self.font_color)
+        self.place_text(text_string,wpos,self.config.windowConfig.font_color)
         self.curr_gui_line+=1
 
 
         return
+
+    def render_all_ball_trails(self):
+        for ball in self.world.balls:
+            cl=[self.world_to_screen_v(vec).as_tup() for vec in ball.trail_cl.list]
+            if len(cl)>=2:
+                pygame.draw.lines(self.window,self.config.windowConfig.trail_color,False,cl)
 
     
     def render_gui(self,sdt,rdt,ui_toggled:bool):
@@ -297,58 +289,76 @@ class Game:
         self.curr_gui_line=0
         self.ui_tl_v=self.ui_to_window_xy(Vector2(0,0))
 
-        self.text_rend("U - UI Toggle")
-
-        if ui_toggled:
-            self.text_rend()
-            file_path = 'v2.1 chunking/support/static/instructions.txt'
+        if not ui_toggled:
+            self.side_UI_text_rend("U - UI Toggle")
+        else:
+            self.side_UI_text_rend()
+            
+            # controls 
+            file_path = self.config.windowConfig.controls_guide_path
             with open(file_path, 'r') as file:
                 for line in file:
-                    self.text_rend(line.rstrip())
+                    self.side_UI_text_rend(line.rstrip())
+            self.side_UI_text_rend()
 
-            self.text_rend()
+            if self.mode == "":
+                if sdt !=0:
+                    sim_hz=round(1/sdt)
+                    self.side_UI_text_rend(f"Sim Hz: {sim_hz}")
+                if rdt !=0:
+                    rend_hz=round(1/rdt)
+                    self.side_UI_text_rend(f"Render Hz: {rend_hz}")
 
-            if sdt !=0:
-                sim_hz=round(1/sdt)
-                self.text_rend(f"Sim Hz: {sim_hz}")
-            if rdt !=0:
-                rend_hz=round(1/rdt)
-                self.text_rend(f"Render Hz: {rend_hz}")
+                self.side_UI_text_rend()
+                self.side_UI_text_rend(f"{len(self.world.balls)} Balls")
+                self.side_UI_text_rend(f"{len(self.world.walls)} Walls")
+                self.side_UI_text_rend()
 
-            self.text_rend()
-            self.text_rend(f"{len(self.world.balls)} Balls")
-            self.text_rend(f"{len(self.world.walls)} Walls")
-            self.text_rend()
-            self.text_rend(f"Mode: {self.mode}")
+                total_E=0
+                for ball in self.world.balls:
+                    total_E+= 0.5 * ball.mass * (ball.v.mag_sqr())
+                self.side_UI_text_rend(f"Total kinetic energy: {round(total_E,1)}")
+            else:
+                self.side_UI_text_rend(f"Mode: {self.mode}")
+                self.side_UI_text_rend()
+
+            
             if self.mode=="ball":
-                self.text_rend(f"Brush Ball Size: {self.creator_ball_size}")
+                self.side_UI_text_rend(f"Brush Ball Size: {self.creator_ball_radius}")
+                self.side_UI_text_rend(f"Brush Ball Mass: {self.default_radius_to_mass(self.creator_ball_radius)}")
+                if self.ball_creator_fixed:
+                    self.side_UI_text_rend("Fixed ball toggled")
                 if self.mouse_down_pos == None:
-                    pygame.draw.circle(self.window,self.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_size)
+                    pygame.draw.circle(self.window,self.config.windowConfig.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_radius)
                 else:
-                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
+                    pygame.draw.circle(self.window,self.config.windowConfig.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_radius)
 
-            self.text_rend()
-            total_E=0
-            for ball in self.world.balls:
-                m=1
-                total_E+= 0.5 * m * (ball.v.mag_sqr())
-            self.text_rend(f"Total energy: {round(total_E,1)}")
-
+            
 
             # render inworld gui items
             if self.mouse_down_pos != None:
-                self.draw_line(self.curr_mouse_pos,self.mouse_down_pos,self.plan_color,is_in_world_cord=False)
+                self.draw_line(self.curr_mouse_pos,self.mouse_down_pos,self.config.windowConfig.plan_color,is_in_world_cord=False)
 
                 if self.mode == "ball":
-                    pygame.draw.circle(self.window,self.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_size)
-                    self.text_rend()
+                    pygame.draw.circle(self.window,self.config.windowConfig.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_radius)
+                    self.side_UI_text_rend()
                     vmag=round((self.curr_mouse_pos-self.mouse_down_pos).magnitude())
-                    self.text_rend(f"V: {vmag}")
+                    self.side_UI_text_rend(f"V: {vmag}")
                     m=1
                     e=(self.curr_mouse_pos-self.mouse_down_pos).magnitude()**2 * 0.5 * m
-                    self.text_rend(f"E: {round(e)}")
-                    
-        
+                    self.side_UI_text_rend(f"E: {round(e)}")
+
+                    # ball ting
+                    v_diff=(self.curr_mouse_pos-self.mouse_down_pos)
+                    if not v_diff.is_zero():
+                        norm=Vector2(v_diff.y,-v_diff.x).scale_to_mag(self.creator_ball_radius)
+                        for c in [-1,1]:
+                            d=norm*c
+                            self.draw_line(self.curr_mouse_pos+d,self.mouse_down_pos+d,self.config.windowConfig.plan_color,is_in_world_cord=False)
+                        
+            if self.toggle_ball_trails:
+                self.side_UI_text_rend("Toggled Trail rendering")
+
             if self.render_chunks_bool:
                 self.render_chunks()
             if self.show_ball_id:
@@ -372,21 +382,21 @@ class Game:
 
         for x in range(ndim[0]+1):
             
-            wx = x * ref.side_len + self.pad
+            wx = x * ref.side_len + self.config.windowConfig.padding
 
-            pygame.draw.line(self.window,self.chunk_color,(wx,self.pad),(wx,ty),2)
+            pygame.draw.line(self.window,self.config.windowConfig.chunk_color,(wx,self.config.windowConfig.padding),(wx,ty),2)
 
             
         for y in range(ndim[0]+1):
-            wy= y * ref.side_len +self.pad
-            pygame.draw.line(self.window,self.chunk_color,(self.pad,wy),(tx,wy),2)
+            wy= y * ref.side_len + self.config.windowConfig.padding
+            pygame.draw.line(self.window,self.config.windowConfig.chunk_color,(self.config.windowConfig.padding,wy),(tx,wy),2)
         
         for x in range(ndim[0]):
-            for y in range(ndim[0]):
+            for y in range(ndim[1]):
                 wpos=self.world_to_screen_v((Vector2(x,y) + (0.5,0.5))*ref.side_len)
                 text=str(len(ref[x,y]))
                 # text=str((x,y))
-                self.place_text(text,wpos,self.chunk_color,True)
+                self.place_text(text,wpos,self.config.windowConfig.chunk_color,True)
 
     
     def render_ball_debug(self):
@@ -396,15 +406,15 @@ class Game:
 
             
             wpos=self.world_to_screen_v(ball.pos)
-            id=ball.id
-            text=str(id)
 
             bbl=self.world.ball_base.get_all_adj_chunk_items(ball.pos,True)
             if id in bbl:
                 bbl.remove(id)
             else:
                 print(f"{id} could not find self {bbl}")
-            text=str(len(bbl)) if len(bbl) !=0 else " "
+
+            # code to get number of proximity balls
+            # text=str(len(bbl)) if len(bbl) !=0 else " "
             # text = str(id) + "|" + text
 
             if not ball.v.is_zero():
@@ -415,7 +425,7 @@ class Game:
                         self.draw_line(wpos,wpos2,(0,255,0),is_in_world_cord=False)
 
 
-            self.place_text(text,wpos,self.ball_id_color)
+            self.place_text(ball.debug_info,wpos,self.config.windowConfig.ball_id_color)
 
 
 
@@ -438,9 +448,10 @@ class Game:
         self.mode=""
         self.mouse_down_pos=None
 
-        self.creator_ball_size=3
+        self.creator_ball_radius=3
 
-        
+        # needed to initalise toggle setting attributes
+        self.check_toggles()
 
         # keep game running till running is true
         while self.running:
@@ -452,6 +463,8 @@ class Game:
             # Check for event if user has pushed
             # any event in queue
             self.handle_events(pygame.event.get())
+
+
                     
             
             

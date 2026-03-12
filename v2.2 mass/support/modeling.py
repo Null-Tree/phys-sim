@@ -1,5 +1,11 @@
-from .dataclasses import *
 
+# if __name__ == "__main__":
+#     from dataclasses import *
+# else:
+#     from .dataclasses import *
+
+# DEBUG
+from .dataclasses import *
 
 
 def sign(v):
@@ -25,72 +31,62 @@ def in_range(v,min,max):
     return False
 
 class Ball:
-    
-    def __init__(self,p,v=(0,0),a=(0,0),r:int=3,bounce_factor:float=1,fixed:bool=False):
-        """
-        creates a ball object
-        
-        :param p: position
-        :type p: Vector2,list[2],tuple[2]
+    __slots__=["pos","v","a","r","mass","restitution","oldpos","id","potential_phasing","debug_info"]
+    def __init__(self,pos,v=(0,0),a=(0,0),
+                 r:int=3,mass:int=None,
+                 restitution:float=1):
 
-        :param v: Velocity
-        :type p: Vector2,list[2],tuple[2]
 
-        :param a: acceleration
-        :type p: Vector2,list[2],tuple[2]
-
-        :param r: radius
-        :type r: int
-
-        :param bounce_factor: how much velocity to remain after bounce with other balls ONLY, TODO NOT CURRENTLY IMPLEMENTED
-
-        :type bounce_factor: float
-        :param fixed: will the ball be stationary permanently
-        :type fixed: bool
-        """
-        self.pos=Vector2.to_V2(p)
+        self.pos=Vector2.to_V2(pos)
         self.v=Vector2.to_V2(v)
         self.a=Vector2.to_V2(a)
+        
         self.r=r
-        self.fixed=fixed
-        self.bounce_factor=bounce_factor
-        self.oldpos=p
+        self.mass=mass if mass != None else r**2
+        
+        self.restitution = restitution
+
+        
+        # for other stuff to meddle with
+        self.oldpos=pos
         self.id=None
+
+        self.debug_info=""
     
     def copy(self):
         """obtains a copy of ball"""
-        return Ball(self.pos,self.v,self.a,self.r)
+        return Ball(self.pos,self.v,self.a,self.r,self.mass,self.restitution)
     
     def __str__(self):
         """enables print() use"""
         return f"Ball({self.pos},{self.v})"
 
-class Wall:
-    def __init__(self,p1:Vector2,p2:Vector2,bounce_factor=.8):
-        """
-        Creates a wall object
-        
-        :param p1: position of an end
-        :type p1: Vector2
-        :param p2: position of other end
-        :type p2: Vector2
-        :param bounce_factor: how much velocity will balls retain on bounce
-        """
-        self.p1=p1
-        self.p2=p2
+
         
 
-        self.lengh=(p1-p2).magnitude()
+class Wall:
+    def __init__(self,p1,p2,friction:float=0):
+        """p1p2 vector likes, frct def 0"""
+        self.p1=Vector2.to_V2(p1)
+        self.p2=Vector2.to_V2(p2)
+        
+        del p1,p2
+
+        self.lengh=(self.p1-self.p2).magnitude()
+        
 
         # direction vectr
         # P1 -> P2
-        self.v_dir=p2-p1
+        self.v_dir:Vector2=self.p2-self.p1
         # normal vector
         self.v_norm=Vector2(self.v_dir.y,-self.v_dir.x)
 
-        self.bounce_factor=bounce_factor
+        self.friction=friction
+
+        self.point_wall_bool = (self.v_dir).is_zero()
 
         # print(self.v_dir*self.v_norm)
+        
 
     def dist_from_wall(self,p):
         """
@@ -123,30 +119,9 @@ class Physics:
         """
         self.world=world
     
-    def p_contact_ball_wall(ball:Ball,wall:Wall):
-        "tf is tthis"
-        pass
-
-    def reflect_v(self,v:Vector2,d:Vector2,ratio=1):
-        """
-        for a given vector v and a direction vector d, it will reflect vector component of v paralel to d
-        
-        :param v: original vector
-        :type v: Vector2
-        :param d: direction vector (does not have to be unit)
-        :type d: Vector2
-        :param ratio: how much will the paralel vector component be lost?
-        """
-        if d.is_zero():
-            raise Exception(f"direction vector {str(d)} is zero for reflection")
-        d=d.unit_v()
-        vc=v.v_res(d)
-        v-= vc*(1+ratio)
-        return v
-
+     # #############
 
     
-     # #############
     
     def apply_sva_kinematics(self,ball:Ball,dt):
         """
@@ -157,10 +132,72 @@ class Physics:
         :param dt: delta time, change in time since last simulated update
         """
         # ball.a=Vector2(0,100)
-        oldv=ball.v
-        ball.v+=ball.a*dt *0.5
-        ball.oldpos=ball.pos
+        oldv=ball.v.copy()
+        ball.v+=ball.a*dt
+
+        ball.oldpos=ball.pos.copy()
+
+        # suvat, s=(u+v)/2 * t
         ball.pos+=((ball.v+oldv)/2)*dt
+
+    def ball_potential_speedphasing_test(self,ball:Ball):
+        if ball.oldpos==ball.pos: 
+            ball.potential_phasing= False
+            return
+
+        est_diff_in_p=(ball.pos-ball.oldpos).manh_dist()
+        # if we consider its diagnal displacement, can it potentially skip walls
+        # yes it would be 2r and we only check new pos
+        # return if its next jump will jump over ball diameter
+        ball.potential_phasing= (est_diff_in_p >= ball.r*2)
+
+    def point_wall_1ball_bounce(self,ball:Ball,wallpoint:Vector2,override_check=None):
+        """wall of zero lengh and 1 ball bounce mechanic"""
+        if override_check or (ball.pos-wallpoint).magnitude()<ball.r:
+            # snapback
+            ball.pos=ball.oldpos
+            # reflect
+            ball.v = ball.v.reflect_v(ball.pos-wallpoint,ball.restitution)
+
+    def point_wall_1ball_bounce_heavyalgerbaic(self,ball:Ball,wallpoint:Vector2):
+        """wall of zero lengh and 1 ball bounce mechanic but with heavy math"""
+        # draw a line between 2 ball positions, find closest dist from ball line to wall
+
+        bp1,bp2=ball.oldpos,ball.pos
+
+        bp1_to_wall:Vector2=wallpoint-bp1
+        bp1_to_bp2:Vector2=bp2-bp1
+
+        if in_range(bp1_to_wall.scalar_res(bp1_to_bp2),0,bp1_to_bp2.magnitude()):
+            shortest_path=bp1_to_wall.norm_v_res(bp1_to_bp2)
+            # ball path to wall
+            shortest_path_mag_sqr=shortest_path.mag_sqr()
+            if shortest_path_mag_sqr <= ball.r ** 2:
+                # will contact betweel old pos and new pos but whrer
+
+                print(shortest_path_mag_sqr**0.5)
+                
+                # see collision pointwall and ball drawing in project folder obsidian
+                contact_point_to_wall_resalong_bp1bp2=math.sqrt(ball.r**2 - shortest_path_mag_sqr)
+                bp1_to_wall_sres_to_bp2=bp1_to_wall.scalar_res(bp1_to_bp2)
+                contact_point = bp1+bp1_to_bp2.scale_to_mag(bp1_to_wall_sres_to_bp2-contact_point_to_wall_resalong_bp1bp2)
+                
+
+                # refl ball
+                # snap to wall
+                wall_to_contactpoint=contact_point-wallpoint
+                # ball.pos=wallpoint + (wall_to_contactpoint).scale_to_mag(ball.r+10)
+
+                ball.pos=contact_point + (wall_to_contactpoint).scale_to_mag(1)
+
+                # ball.pos=ball.oldpos
+
+
+                # refl normal momentum
+                ball.v = ball.v.reflect_v(wall_to_contactpoint,ball.restitution)
+
+                # ball.v=Vector2(0,0)
+
     
     def apply_all_wall_collosions(self,ball:Ball):
         """
@@ -176,34 +213,30 @@ class Physics:
         # for intellesense only DEBUG
         # self.world=World()
         # self.world.create_chunkbases()
+        if not ball.potential_phasing:
+            w_id_l1=set(self.world.wall_base.get_all_adj_chunk_items(bp1,True))
+            w_id_l2=set(self.world.wall_base.get_all_adj_chunk_items(bp2,True))
+            w_id_l=set.union(w_id_l1,w_id_l2)
+            del w_id_l1
+            del w_id_l2
 
+            pointwall_bouncer_function=self.point_wall_1ball_bounce
+        else:
+            w_id_l=set([])
+            for pos in self.world.point_raycast_for_chunks(bp1,bp2):
+                w_id_l=w_id_l.union(set(self.world.wall_base.get_all_adj_chunk_items(pos,True)))
 
-        w_id_l1=self.world.wall_base.get_all_adj_chunk_items(bp1,True)
-        w_id_l2=self.world.wall_base.get_all_adj_chunk_items(bp2,True)
-        
-        w_id_l=set(w_id_l1 + w_id_l2)
+            pointwall_bouncer_function=self.point_wall_1ball_bounce_heavyalgerbaic
 
-        del w_id_l1
-        del w_id_l2
+        for w_id in w_id_l:
+            wall:Wall=self.world.walls[w_id]
 
-
-        wl=[self.world.walls[wid] for wid in w_id_l]
-
-
-            
-
-
-
-        for wall in wl:
-
-            # wp1,wp2=wall.p1,wall.p2
+            # DEBUG
             # wall=Wall()
+
             if wall.v_dir.is_zero():
                 # if is a point wall, reflect off as a point and ignore other collision checks
-                b_v_c=ball.pos-wall.p2
-                if (b_v_c).magnitude() <= ball.r:
-                    ball.pos=oldpos
-                    ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
+                pointwall_bouncer_function(ball,wall.p1)
                 continue
                 
 
@@ -220,27 +253,21 @@ class Physics:
 
                 if in_range(d_along_wall,0,wall.lengh):
                     # reflect velocity vector perpendicular to wall
+
                     ball.pos=oldpos
-                    ball.v = self.reflect_v(ball.v,wall.v_norm,wall.bounce_factor)
+                    ball.v = ball.v.reflect_v(wall.v_norm,ball.restitution)
+                    return
 
                 
-                elif in_range(d_along_wall,-ball.r,0):
-                    # reflect from end of p1
-                    b_v_c=ball.pos-wall.p1
-                    if (b_v_c).magnitude() <= ball.r:
-                        ball.pos=oldpos
-                        ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
-                        
-                        
-                
-                elif in_range(d_along_wall-wall.lengh,0,ball.r):
-                    # reflect from end of p2
-                    b_v_c=ball.pos-wall.p2
-                    if (b_v_c).magnitude() <= ball.r:
-                        ball.pos=oldpos
-                        ball.v = self.reflect_v(ball.v,b_v_c,wall.bounce_factor)
 
+            # note this should only run if we are already sure ball wont bounce off a mid section not an end section 
+            for wallp in [wall.p1,wall.p2]:
+                pointwall_bouncer_function(ball,wallp)
+
+    # TODO make collisions account retisity
+    # TODO make collisions for potenetial phasers
     def apply_all_ball_collosions(self,ball:Ball):
+
         """
         applies ball collision for a single ball (if nessicary)
         
@@ -253,76 +280,88 @@ class Physics:
         # self.world=World()
         # self.world.create_chunkbases()
 
-        op1=ball.oldpos
+        if not ball.potential_phasing:
+            op1=ball.oldpos
 
 
-        # # uses both positions
-        # b_id_l1=self.world.ball_base.get_all_adj_chunk_items(op1,True)
-        # b_id_l2=self.world.ball_base.get_all_adj_chunk_items(ball.pos,True)
-        # b_id_l=set(b_id_l1 + b_id_l2)
-        # del b_id_l1
-        # del b_id_l2
-        # bl:list[Ball]=[self.world.balls[bid] for bid in b_id_l]
+            # # uses both positions
+            # b_id_l1=self.world.ball_base.get_all_adj_chunk_items(op1,True)
+            # b_id_l2=self.world.ball_base.get_all_adj_chunk_items(ball.pos,True)
+            # b_id_l=set(b_id_l1 + b_id_l2)
+            # del b_id_l1
+            # del b_id_l2
+            # bl:list[Ball]=[self.world.balls[bid] for bid in b_id_l]
 
-        b_id_l=(self.world.ball_base.get_all_adj_chunk_items(ball.pos,True))
-        if ball.id not in b_id_l:
-            print("ball could not detect self",ball.id,self.world.ball_base.get_chunk_cord(ball.pos))
-            pass
+            b_id_l=(self.world.ball_base.get_all_adj_chunk_items(ball.pos,True))
+            if ball.id not in b_id_l:
+                print("ball could not detect self",ball.id,self.world.ball_base.get_chunk_cord(ball.pos))
+                pass
+            else:
+                b_id_l.remove(ball.id)
+
+            bl:list[Ball]=[self.world.balls[bid] for bid in b_id_l]
+
+            # DEBUG
+            
+            # print("f")
+            # self.world=World()
+            # from .graphics import Game
+            # self.world.gameobj=Game()
+            # Game.draw_line
+
+            # self.world.gameobj.place_text(str(len(bl)),self.world.gameobj.world_to_screen_v(ball.pos),(0,100,0))
+
+
+            for ball2 in bl:
+                # self.world.gameobj.draw_line(ball.pos,ball2.pos,(0,0,100),1,True)
+                
+                # print("lined")
+                # print(ball.id,[v for v in b_id_l])
+                op2=ball2.oldpos
+                d_pv:Vector2=ball.pos-ball2.pos
+
+                r_total=ball.r+ball2.r
+
+                diag_d=d_pv.x + d_pv.y
+                if diag_d > 2*r_total:
+                    continue
+
+                dist_sqr=(ball.pos - ball2.pos).mag_sqr()
+                                
+                if dist_sqr<=r_total**2:
+                    # if ball to ball collision
+                    
+                    # snap back
+                    ball.pos=op1
+                    ball2.pos=op2
+                    
+                    # Find velocity lose
+                    v_lost_by_ball1=ball.v.v_res(d_pv)
+                    v_lost_by_ball2=ball2.v.v_res(d_pv)
+
+                    #remove velocity to be swapped
+                    ball.v-= v_lost_by_ball1
+                    ball2.v -= v_lost_by_ball2
+
+
+                    # swap velocities with acknowedgemtn of weight
+                    ball.v += (v_lost_by_ball2 * ball2.mass) / ball.mass
+                    ball2.v+= (v_lost_by_ball1 * ball.mass) / ball2.mass
+
         else:
-            b_id_l.remove(ball.id)
-
-        bl:list[Ball]=[self.world.balls[bid] for bid in b_id_l]
-
-        # DEBUG
+            # if potential phasing
+            raise Exception("not made yet lol")
         
-        # print("f")
-        # self.world=World()
-        # from .graphics import Game
-        # self.world.gameobj=Game()
-        # Game.draw_line
+    
+    def apply_all_gravity(self):
+        for i1,ball1 in enumerate(self.world.balls):
+            ball1.a=Vector2(0,0)
+            for i2,ball2 in enumerate(self.world.balls):    
+                if i1!=i2:
+                    v_toBall2:Vector2=ball2.pos - ball1.pos
+                    strengh=self.world.g_coef * (ball1.mass * ball2.mass) / (v_toBall2.mag_sqr()) / ball1.mass
+                    ball1.a +=  v_toBall2.unit_v() * strengh
 
-        # self.world.gameobj.place_text(str(len(bl)),self.world.gameobj.world_to_screen_v(ball.pos),(0,100,0))
-
-
-        for ball2 in bl:
-            # self.world.gameobj.draw_line(ball.pos,ball2.pos,(0,0,100),1,True)
-            
-            # print("lined")
-            # print(ball.id,[v for v in b_id_l])
-
-
-
-
-
-            op2=ball2.oldpos
-            d_pv:Vector2=ball.pos-ball2.pos
-
-            r_total=ball.r+ball2.r
-
-            diag_d=d_pv.x + d_pv.y
-            if diag_d > 2*r_total:
-                continue
-
-            
-
-            dist_sqr=(ball.pos - ball2.pos).mag_sqr()
-            
-            
-            if dist_sqr<r_total**2:
-                # dist=dist_sqr**0.5
-                # if ball to ball collision
-                # snap back
-                
-                ball.pos=op1
-                ball2.pos=op2
-                
-
-                # swap velocities along the dir vector
-                dv1=ball.v.v_res(d_pv)
-                dv2=ball2.v.v_res(d_pv)
-                
-                ball.v += dv2-dv1
-                ball2.v+= dv1-dv2
 
     def tstep_physics(self,dt):
         """
@@ -334,17 +373,29 @@ class Physics:
         bl:list[Ball]=self.world.balls
         obl=[v.copy() for v in bl]
 
-        for i ,ball in enumerate(bl):
-            if not ball.fixed:
-                self.apply_sva_kinematics(ball,dt)
         
         for i ,ball in enumerate(bl):
-            if not ball.fixed:
-                self.apply_all_wall_collosions(ball)
+            self.ball_potential_speedphasing_test(ball)
+
+        for i ,ball in enumerate(bl):
+            self.apply_all_wall_collosions(ball)
         
         for i ,ball in enumerate(bl):
-            if not ball.fixed:
-                self.apply_all_ball_collosions(ball)
+            self.apply_all_ball_collosions(ball)
+
+        for i ,ball in enumerate(bl):
+            self.apply_all_gravity()
+        
+        for i ,ball in enumerate(bl):
+            self.apply_sva_kinematics(ball,dt)
+
+        if self.world.gameobj.show_ball_id:
+
+            for ball in bl:
+                # ball.debug_info=str(ball.mass)
+                ball.debug_info=str(f"{ball.id}: {(self.world.ball_base.get_all_adj_chunk_items(ball.pos,True))}")
+
+
         
 class Chunk_Base:
     """
@@ -479,7 +530,6 @@ class Chunk_Base:
         return out
 
 
-
     def get_all_adj_chunk_items(self,inw_p:Vector2,include_outside=True):
         """gets all adj chunk items"""
         chunk_c=self.get_chunk_cord(inw_p)
@@ -489,25 +539,28 @@ class Chunk_Base:
             print(f"OUTSIDE???: {chunk_c}.{inw_p}")
             return list(self.outside)
 
-        if include_outside:
-            output=set(self.outside)
-        else:
-            output=set()
-
         ccl=self.get_adj_chunk_cords(chunk_c)
-        
 
+
+        adj_items=set()
         for cc in ccl:
             for v in self[cc]:
-                output.add(v)
-        
+                adj_items.add(v)
+
+        if include_outside:
+            output=set.union(adj_items,self.outside)
+        else:
+            output=adj_items
+
+
         
         return list(output)
 
 
+
 class World:
     """handles storage of objects in world, 1 per game"""
-    def __init__(self,dim:tuple,max_ball_radius:int=50,gameobj=None):
+    def __init__(self,dim:tuple,max_ball_radius:int=50,g_coef:int=0,gameobj=None):
         """
         Creates blank world object
         
@@ -532,6 +585,10 @@ class World:
         self.create_chunkbases()
 
         self.gameobj=gameobj
+
+        self.last_ball_created=None
+
+        self.g_coef=g_coef
     
     # CHUNKING
 
@@ -555,6 +612,23 @@ class World:
             ball.id=i
             self.ball_base.add_id(i,ball.pos)
 
+    def point_raycast_for_chunks(self,p1:Vector2,p2:Vector2):
+        points=[p1,p2]
+        diff=p2-p1
+        
+        mag=diff.magnitude()
+
+        if mag!=0:
+            unit=self.wall_base.side_len//5
+            n_segs=mag//unit
+            if n_segs !=0:
+                sub_diff= diff/n_segs
+                interm_node=p1
+                for _ in range(0,math.floor(n_segs)):
+                    interm_node+=sub_diff
+                    points.append(interm_node)
+        return points
+    
 
 
 
@@ -563,23 +637,8 @@ class World:
         #  is index of wall in self.walls
         wall:Wall=self.walls[i]
 
-        
-        diff=wall.p2-wall.p1
-        
-        mag=diff.magnitude()
-
-        unit=self.wall_base.side_len//5
-
-        n_segs=mag//unit
-
-        sub_diff= diff/n_segs
-
-        interm_node=wall.p1
-        for _ in range(0,math.floor(n_segs)):
-            interm_node+=sub_diff
-            self.wall_base.add_id(i,interm_node)
-        
-        self.wall_base.add_id(i,wall.p2)
+        for p in self.point_raycast_for_chunks(wall.p1,wall.p2):
+            self.wall_base.add_id(i,p)    
 
             
 
@@ -607,8 +666,15 @@ class World:
             p1,p2=l_nodes[i:i+2]
             self.walls.append(Wall(p1,p2))
 
-    def add_ball(self,ball:Ball):
-        """adds ball obj to world"""
+    def add_ball(self,ball:Ball=None):
+        """adds ball obj to world, if ball not provided uses last ball"""
+        if ball == None:
+            if self.last_ball_created:
+                ball=self.last_ball_created
+            else:
+                return
+
+        self.last_ball_created=ball.copy()
         id=len(self.balls)
         ball.id=id
         self.balls.append(ball)
