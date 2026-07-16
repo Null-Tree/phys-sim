@@ -1,6 +1,6 @@
 from support.graphics import *
 
-dim=(600,600)
+dim=(1100,800)
 
 config=Config()
 config.windowConfig.gdim = Vector2(*dim)
