@@ -1,7 +1,14 @@
 from support.graphics import *
 
 dim=(600,600)
-g=Game(dim,5)
+
+config=Config()
+config.windowConfig.gdim = Vector2(*dim)
+config.gameConfig.do_ball_ball_collisions=True
+config.gameConfig.do_gravity=True
+config.gameConfig.max_ball_size=20
+
+g=Game(config)
 
 # make walls
 g.world.edge_walls()

@@ -51,7 +51,7 @@ class GameConfig:
     do_ball_ball_collisions:bool=True
     do_wall_ball_collisions:bool=True
     do_equal_mass_collisions:bool=False
-    do_gravity:bool=True
+    do_gravity:bool=False
 
 
 @dataclass

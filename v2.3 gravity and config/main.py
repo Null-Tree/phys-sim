@@ -4,7 +4,6 @@ config=Config()
 
 config.windowConfig.gdim = Vector2(1100,800)
 config.gameConfig.do_ball_ball_collisions=True
-config.gameConfig.g_coef=-100
 config.gameConfig.max_ball_size=10
 
 g=Game(config)

@@ -302,13 +302,6 @@ class Game:
             self.side_UI_text_rend()
 
             if self.mode == "":
-                if sdt !=0:
-                    sim_hz=round(1/sdt)
-                    self.side_UI_text_rend(f"Sim Hz: {sim_hz}")
-                if rdt !=0:
-                    rend_hz=round(1/rdt)
-                    self.side_UI_text_rend(f"Render Hz: {rend_hz}")
-
                 self.side_UI_text_rend()
                 self.side_UI_text_rend(f"{len(self.world.balls)} Balls")
                 self.side_UI_text_rend(f"{len(self.world.walls)} Walls")
@@ -332,7 +325,13 @@ class Game:
                     pygame.draw.circle(self.window,self.config.windowConfig.plan_color,self.curr_mouse_pos.as_tup(),self.creator_ball_radius)
                 else:
                     pygame.draw.circle(self.window,self.config.windowConfig.plan_color,self.mouse_down_pos.as_tup(),self.creator_ball_radius)
-
+            
+            if sdt !=0:
+                sim_hz=round(1/sdt)
+                self.side_UI_text_rend(f"Sim Hz: {sim_hz}")
+            if rdt !=0:
+                rend_hz=round(1/rdt)
+                self.side_UI_text_rend(f"Render Hz: {rend_hz}")
             
 
             # render inworld gui items

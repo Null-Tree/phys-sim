@@ -1,0 +1,8 @@
+*.pyc
+.venv
+*.cpython-313.pyc
+*__pycache__/
+v2.3 gravity and config/support/__pycache__/cdataclasses.cpython-313.pyc
+v2.3 gravity and config/support/__pycache__/config.cpython-313.pyc
+v2.3 gravity and config/support/__pycache__/graphics.cpython-313.pyc
+v2.3 gravity and config/support/__pycache__/modeling.cpython-313.pyc

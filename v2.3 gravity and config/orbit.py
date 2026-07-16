@@ -13,6 +13,6 @@ g.world.add_ball(mainball)
 # g.world.add_orbiter(mainball,mainball.r +30)
 g.world.add_orbiter(mainball,mainball.r +70,ball_r=3,mass=10)
 g.world.add_orbiter(mainball,mainball.r +200,ball_r=3,mass=10)
-
-
+g.world.add_orbiter(mainball,mainball.r +300,ball_r=3,mass=10)
+g.world.add_orbiter(mainball,mainball.r +120,ball_r=5,mass=10)
 g.main_loop()
